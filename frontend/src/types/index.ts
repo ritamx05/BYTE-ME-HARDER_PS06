@@ -3,11 +3,15 @@ export interface Patient {
   name: string;
   severity: number;
   arrivalType: 'Walk-in' | 'Ambulance';
+  isAmbulance: boolean;
   waitTime: number;
   priorityScore: number;
-  status: 'Waiting' | 'Assigned' | 'Treated';
+  survivalProbability: number;
+  status: 'waiting' | 'assigned' | 'with_doctor' | 'treated';
   bedId: string | null;
-  arrivedAt: number;
+  arrivedAt: number;       // epoch ms (client-stamped on add)
+  arrivedAtMs?: number;    // ms epoch set by backend on insert (same as arrivedAt)
+  arrivalTime: string;     // ISO string from backend
 }
 
 export interface BedState {

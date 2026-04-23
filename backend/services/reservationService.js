@@ -82,11 +82,9 @@ function _expireReservation(reservationId) {
 
   // Broadcast to all connected clients
   if (_io) {
-    _io.emit('reservation_expired', {
-      reservationId,
-      bedId: reservation.bedId,
-      reservations: getAllReservations(),
-    });
+    const { getBedStats } = require('./bedService');
+    _io.emit('update_reservations', getAllReservations());
+    _io.emit('update_beds', getBedStats());
   }
 }
 

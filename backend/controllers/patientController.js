@@ -31,6 +31,7 @@ function addPatient(req, res) {
     name: name.trim(),
     severity: sev,
     arrivalTime: new Date().toISOString(),
+    arrivedAtMs: Date.now(),
     waitTime: 0,
     priorityScore: 0,
     survivalProbability: 0,

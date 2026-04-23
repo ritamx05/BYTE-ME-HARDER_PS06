@@ -27,6 +27,7 @@ const mciRoutes = require('./routes/mciRoutes');
 const { registerSocketHandlers } = require('./socket/socketHandler');
 const { setIO: setReservationIO } = require('./services/reservationService');
 const { setIO: setDecayIO, startDecayEngine } = require('./services/decayEngine');
+const { setIO: setEscalationIO, startEscalationEngine } = require('./services/escalationEngine');
 
 // ─── App Setup ────────────────────────────────────────────────────────────────
 
@@ -111,10 +112,12 @@ io.on('connection', (socket) => {
 
 setReservationIO(io);
 setDecayIO(io);
+setEscalationIO(io);
 
 // ─── Start Decay Engine ───────────────────────────────────────────────────────
 
 startDecayEngine();
+startEscalationEngine();
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
 

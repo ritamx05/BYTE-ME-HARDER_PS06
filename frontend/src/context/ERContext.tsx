@@ -1,6 +1,14 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { socketService } from '../services/api';
 import { ERState, Patient, BedState, Reservation } from '../types';
+
+export interface EscalationToast {
+  id: string;
+  message: string;
+  action: 'bed_assigned' | 'with_doctor';
+  patientName: string;
+  severity: number;
+}
 
 interface ERContextType extends ERState {
   addPatient: (name: string, severity: number, arrivalType: 'Walk-in' | 'Ambulance') => Promise<void>;
@@ -8,6 +16,8 @@ interface ERContextType extends ERState {
   reserveBed: () => Promise<void>;
   toggleMCI: (enabled: boolean) => Promise<void>;
   isConnected: boolean;
+  toasts: EscalationToast[];
+  dismissToast: (id: string) => void;
 }
 
 const ERContext = createContext<ERContextType | undefined>(undefined);
@@ -20,6 +30,11 @@ export const ERProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     mciMode: false,
   });
   const [isConnected, setIsConnected] = useState(false);
+  const [toasts, setToasts] = useState<EscalationToast[]>([]);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
 
   useEffect(() => {
     const socket = socketService.connect();
@@ -28,6 +43,7 @@ export const ERProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     socket.on('disconnect', () => setIsConnected(false));
 
     socket.on('initial_state', (data: ERState) => setState(data));
+
     socket.on('update_queue', (patients: Patient[]) => {
       setState(prev => ({ ...prev, patients }));
     });
@@ -41,15 +57,28 @@ export const ERProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       setState(prev => ({ ...prev, mciMode }));
     });
 
-    socket.on('notification', (data: { message: string, type: string }) => {
-       // Could use a toast here
-       console.log('Notification:', data.message);
+    // Real-time escalation notifications
+    socket.on('patient_escalated', (data: {
+      patient: Patient;
+      action: 'bed_assigned' | 'with_doctor';
+      message: string;
+    }) => {
+      const toast: EscalationToast = {
+        id: `${data.patient.id}-${Date.now()}`,
+        message: data.message,
+        action: data.action,
+        patientName: data.patient.name,
+        severity: data.patient.severity,
+      };
+      setToasts(prev => [toast, ...prev].slice(0, 5)); // max 5 toasts
+      // Auto-dismiss after 6s
+      setTimeout(() => dismissToast(toast.id), 6000);
     });
 
     return () => {
       socketService.disconnect();
     };
-  }, []);
+  }, [dismissToast]);
 
   const addPatient = async (name: string, severity: number, arrivalType: 'Walk-in' | 'Ambulance') => {
     await socketService.addPatient(name, severity, arrivalType);
@@ -68,7 +97,7 @@ export const ERProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   return (
-    <ERContext.Provider value={{ ...state, addPatient, assignBed, reserveBed, toggleMCI, isConnected }}>
+    <ERContext.Provider value={{ ...state, addPatient, assignBed, reserveBed, toggleMCI, isConnected, toasts, dismissToast }}>
       {children}
     </ERContext.Provider>
   );

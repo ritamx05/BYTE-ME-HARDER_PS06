@@ -33,11 +33,10 @@ function registerSocketHandlers(io, socket) {
 
   // Send initial state on connect
   socket.emit('initial_state', {
-    queue: patientHeap.getSortedQueue(),
-    beds: getAllBeds(),
-    stats: getBedStats(),
+    patients: patientHeap.getSortedQueue(),
+    beds: getBedStats(),
     reservations: getAllReservations(),
-    mode: getSystemMode(),
+    mciMode: getSystemMode() === 'MCI',
   });
 
   // ------------------------------------------------------------------
@@ -62,6 +61,7 @@ function registerSocketHandlers(io, socket) {
         name: name.trim(),
         severity: sev,
         arrivalTime: new Date().toISOString(),
+        arrivedAtMs: Date.now(),          // ms epoch for escalation timer
         waitTime: 0,
         priorityScore: 0,
         survivalProbability: 0,
@@ -77,10 +77,7 @@ function registerSocketHandlers(io, socket) {
       patientHeap.insertPatient(patient);
       console.log(`[SOCKET] Patient added: ${patient.name} | Score: ${patient.priorityScore}`);
 
-      io.emit('queue_updated', {
-        queue: patientHeap.getSortedQueue(),
-        mode: getSystemMode(),
-      });
+      io.emit('update_queue', patientHeap.getSortedQueue());
 
       socket.emit('patient_added', { success: true, patient });
     } catch (err) {
@@ -115,8 +112,8 @@ function registerSocketHandlers(io, socket) {
       patientHeap.updatePatient(nextPatient.id, { status: 'assigned', bedId: bed.id });
       console.log(`[SOCKET] Bed ${bed.id} assigned to "${nextPatient.name}"`);
 
-      io.emit('queue_updated', { queue: patientHeap.getSortedQueue(), mode: getSystemMode() });
-      io.emit('beds_updated', { stats: getBedStats(), beds: getAllBeds() });
+      io.emit('update_queue', patientHeap.getSortedQueue());
+      io.emit('update_beds', getBedStats());
       socket.emit('bed_assigned', {
         success: true,
         patient: { ...nextPatient, status: 'assigned', bedId: bed.id },
@@ -152,8 +149,8 @@ function registerSocketHandlers(io, socket) {
 
       console.log(`[SOCKET] Reservation created: ${result.reservation.id} for bed ${targetBedId}`);
 
-      io.emit('beds_updated', { stats: getBedStats(), beds: getAllBeds() });
-      io.emit('reservations_updated', { reservations: getAllReservations() });
+      io.emit('update_beds', getBedStats());
+      io.emit('update_reservations', getAllReservations());
       socket.emit('reservation_created', { success: true, reservation: result.reservation });
     } catch (err) {
       console.error('[SOCKET] reserve_bed error:', err.message);
@@ -180,8 +177,8 @@ function registerSocketHandlers(io, socket) {
 
       console.log(`[SOCKET] MCI toggled to "${newMode}". Recalculated ${patientHeap.size()} patients.`);
 
-      io.emit('mode_changed', { mode: newMode });
-      io.emit('queue_updated', { queue: patientHeap.getSortedQueue(), mode: newMode });
+      io.emit('update_mci', isMCI);
+      io.emit('update_queue', patientHeap.getSortedQueue());
     } catch (err) {
       console.error('[SOCKET] toggle_mci error:', err.message);
       socket.emit('error', { event: 'toggle_mci', message: err.message });

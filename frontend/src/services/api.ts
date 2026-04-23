@@ -4,7 +4,7 @@ class SocketService {
   private socket: Socket | null = null;
 
   connect() {
-    this.socket = io(window.location.origin);
+    this.socket = io('http://localhost:5000');
     return this.socket;
   }
 

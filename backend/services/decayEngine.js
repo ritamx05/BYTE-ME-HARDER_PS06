@@ -50,10 +50,7 @@ function decayTick() {
   console.log(`[DECAY] Vitals decay tick — queue rebuilt. ${patientHeap.size()} patient(s) in queue.`);
 
   if (_io) {
-    _io.emit('queue_updated', {
-      queue: patientHeap.getSortedQueue(),
-      mode: getSystemMode(),
-    });
+    _io.emit('update_queue', patientHeap.getSortedQueue());
   }
 }
 
