@@ -1,0 +1,6 @@
+{
+  "name": "ER Priority Engine",
+  "description": "A high-performance real-time emergency room patient queue and bed management dashboard with MCI mode and vitals decay engine.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
