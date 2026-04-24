@@ -9,16 +9,84 @@ The **ER Priority Engine** is a state-of-the-art, real-time triage and bed manag
 
 ---
 
+## 🏗️ System Architecture
+
+The system is built on a decoupled architecture where the backend acts as a deterministic state machine, and the frontend provides a reactive interface.
+
+```mermaid
+graph LR
+    subgraph "Frontend (React + Vite)"
+        UI[React Components]
+        Context[ER Context / State]
+        SocketClient[Socket.io Client]
+    end
+    
+    subgraph "Backend (Node.js + Express)"
+        SocketHandler[Socket.io Server]
+        QueueService[Queue Service / Max-Heap]
+        BedService[Bed Service]
+        DecayEngine[Vitals Decay Engine]
+        EscalationEngine[Escalation Engine]
+        PriorityService[Priority Service]
+    end
+    
+    UI <--> Context
+    Context <--> SocketClient
+    SocketClient <--> SocketHandler
+    SocketHandler <--> QueueService
+    SocketHandler <--> BedService
+    DecayEngine -- "Updates Priority" --> QueueService
+    EscalationEngine -- "Auto-Assigns" --> BedService
+    EscalationEngine -- "Updates Status" --> QueueService
+    QueueService -- "Uses" --> PriorityService
+```
+
+---
+
+## 🔄 Operational Workflow
+
+The following flowchart outlines the lifecycle of a patient within the ER Priority Engine, from intake to discharge.
+
+```mermaid
+graph TD
+    Start([Patient Arrival]) --> Intake[Intake Form: Name, Severity, Symptoms]
+    Intake --> Mapping[Specialist Detection Logic]
+    Mapping --> Calc[Priority Calculation]
+    
+    subgraph "Queue Management"
+        Calc --> Heap[Insert into Max-Heap]
+        Heap --> Waiting{Waiting in Queue}
+        
+        Waiting --> Decay[Vitals Decay Engine]
+        Decay -- "Wait Time++" --> Calc
+        
+        Waiting --> Escalation[Escalation Engine]
+        Escalation -- "Time Limit Reached" --> BedCheck{Beds Available?}
+    end
+    
+    BedCheck -- "Yes" --> Assign[Auto-Assign Bed]
+    BedCheck -- "No" --> DocRoute[Route to Doctor Queue]
+    
+    Waiting --> Manual[Manual Bed Assignment]
+    
+    Assign --> Treatment[Active Treatment]
+    DocRoute --> Treatment
+    Manual --> Treatment
+    
+    Treatment --> Discharge([Discharge])
+    Discharge --> Free[Bed Marked Available]
+```
+
+---
+
 ## ✨ Key Features
 
-- ⚡ **Real-Time Synchronization**: Instantaneous state updates across all connected clients using Socket.io. No manual refreshing needed.
-- 🩺 **Intelligent Symptom-Based Triage**:
-  - Enter symptoms during patient intake (e.g., "heart attack", "bone fracture").
-  - The system automatically detects keywords and assigns the appropriate specialist (Cardiologist, Orthopedic, etc.).
-- 🚨 **Accident Auto-Escalation**: Accidental cases are initially routed to General Doctors. If severity is high (≥7), an immediate "CALL SURGEON" escalation path is unlocked.
-- 🛏️ **Dynamic Bed Management**: Complete oversight of ER and OPD beds. Includes preemptive ghost reservations for incoming ambulances.
-- 📉 **Vitals Decay Engine**: Patients waiting in the queue automatically have their priority scores re-evaluated over time, ensuring nobody is left behind.
-- ⚠️ **MCI Mode (Mass Casualty Incident)**: A single toggle that recalibrates the entire triage algorithm to focus on survivability probability over standard wait-time fairness.
+- ⚡ **Real-Time Synchronization**: Instantaneous state updates across all connected clients using Socket.io.
+- 🩺 **Intelligent Symptom-Based Triage**: Automatic specialist assignment (Cardiologist, Orthopedic, etc.) based on symptom keywords.
+- 🚨 **Accident Auto-Escalation**: High-severity accident cases unlock immediate "CALL SURGEON" protocols.
+- 🛏️ **Dynamic Bed Management**: ER and OPD bed oversight with **Preemptive Bed Reservation** for incoming ambulances.
+- 📉 **Vitals Decay Engine**: Background process that increases patient priority scores the longer they wait, preventing "queue starvation."
+- ⚠️ **MCI Mode (Mass Casualty Incident)**: A triage shift from "Wait-Time Fairness" to "Maximum Survivability" logic.
 
 ---
 
@@ -27,74 +95,57 @@ The **ER Priority Engine** is a state-of-the-art, real-time triage and bed manag
 ### Frontend
 - **Framework**: React (Vite)
 - **Language**: TypeScript
-- **Styling**: Tailwind CSS & Lucide React (Icons)
-- **Animation**: Motion (Framer Motion)
+- **Styling**: Vanilla CSS (Premium Custom Design)
+- **Animation**: Framer Motion
+- **Icons**: Lucide React
 - **Real-time**: Socket.io-client
 
 ### Backend
 - **Runtime**: Node.js
 - **Server**: Express.js
 - **Real-time**: Socket.io
-- **Data Structure**: Custom Max-Heap Priority Queue (No external DB required for demo)
+- **Logic**: Custom Max-Heap Priority Queue (Manual implementation)
+- **Engines**: Background Vitals Decay & Escalation Engines
 
 ---
 
 ## 🚀 Getting Started
 
-Follow these instructions to get a copy of the project up and running on your local machine for development and testing.
-
 ### Prerequisites
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- [npm](https://www.npmjs.com/)
 
-Ensure you have the following installed:
-- [Node.js](https://nodejs.org/) (v18 or higher recommended)
-- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
+### Installation
 
-### Installation & Execution
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd devwrap2.0
+   ```
 
-The project is split into a `frontend` and a `backend`. You will need to run both simultaneously.
+2. **Setup Backend**:
+   ```bash
+   cd backend
+   npm install
+   npm run dev
+   ```
 
-#### 1. Start the Backend Server
-
-```bash
-cd backend
-npm install
-npm run dev
-```
-*The backend will run on http://localhost:5000 and initialize the socket connections.*
-
-#### 2. Start the Frontend Application
-
-Open a **new terminal window/tab**:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-*The frontend will run on http://localhost:5173.*
+3. **Setup Frontend**:
+   ```bash
+   cd ../frontend
+   npm install
+   npm run dev
+   ```
 
 ---
 
 ## 💻 Usage Guide
 
-1. **System Protocol (Configuration)**
-   - Upon initial load, navigate to the **Protocol Page**.
-   - Review or adjust the Bed layouts (default is 10 ER beds).
-   - Review the default seeded doctors (Dr. Heart, Dr. Bone, Dr. General, Dr. Surgeon).
-   - Click **Initialize Dashboard**.
-
-2. **Patient Intake**
-   - Use the **Intake New Patient** form on the left sidebar.
-   - Enter a name, select severity, and type a brief description in the **Symptoms** box.
-   - Observe the system intelligently suggesting a specialist based on the symptoms.
-
-3. **Queue Management**
-   - The central table displays the live queue.
-   - Watch the **Escalation** progress bars ticking down.
-   - Use the **Bed Management** panel to Assign the next available bed to the highest-priority patient.
-
-4. **Escalations**
-   - For severe accident cases (Severity ≥ 7), locate the flashing **CALL SURGEON** button in the patient row to immediately escalate care.
+1. **Initialization**: Navigate to the **Protocol Page** to configure your bed layout and seed doctors.
+2. **Patient Intake**: Use the sidebar to add patients. Enter symptoms like "chest pain" or "broken leg" to see auto-specialist mapping.
+3. **Monitoring**: Watch the live dashboard. The queue sorts automatically based on the priority score.
+4. **Action**: Click "Assign Bed" to move the highest priority patient to an available bed, or use "Call Surgeon" for critical escalations.
+5. **MCI Toggle**: In case of a mass casualty event, toggle MCI mode to see the priority algorithm shift in real-time.
 
 ---
 
@@ -103,20 +154,14 @@ npm run dev
 ```text
 devwrap2.0/
 ├── backend/
-│   ├── controllers/      # Express route controllers
-│   ├── routes/           # REST API endpoint definitions
-│   ├── services/         # Core logic (Bed, Doctor, Queue, Priority, Decay)
+│   ├── services/         # Core logic (Heap, Decay, Escalation, Bed)
 │   ├── socket/           # Real-time event handlers
 │   └── server.js         # Entry point
 └── frontend/
     ├── src/
-    │   ├── components/   # Reusable UI components (PatientTable, AddPatientForm)
-    │   ├── context/      # React Context for global state (ERContext)
-    │   ├── hooks/        # Custom React hooks
-    │   ├── pages/        # Main views (Dashboard, Protocol, Landing)
-    │   ├── services/     # API & Socket communication logic
-    │   └── types/        # TypeScript interfaces
-    └── package.json
+    │   ├── context/      # ER Global State Management
+    │   ├── pages/        # Dashboard, Protocol, Landing
+    │   └── components/   # UI Modules
 ```
 
 ---
