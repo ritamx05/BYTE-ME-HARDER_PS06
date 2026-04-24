@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+  --color-medical-bg: #050505;
+  --color-medical-card: #0a0a0a;
+  --color-medical-border: #333333;
+  --color-critical: #dc2626;
+  --color-moderate: #d97706;
+  --color-stable: #10b981;
+  --color-emerald-accent: #10b981;
+  --color-orange-accent: #f97316;
+}
+
+@layer base {
+  body {
+    @apply bg-medical-bg text-[#E4E3E0] font-sans antialiased select-none;
+  }
+}
+
+@layer components {
+  .tech-panel {
+    @apply bg-medical-card border border-medical-border;
+  }
+  
+  .tech-button {
+    @apply px-4 py-2 font-bold uppercase tracking-widest text-[10px] transition-all active:scale-95 disabled:opacity-30 disabled:active:scale-100 flex items-center justify-center gap-2;
+  }
+
+  .tech-input {
+    @apply bg-zinc-900 border border-zinc-800 p-2 text-sm outline-none focus:border-emerald-500 transition-colors placeholder:text-zinc-700;
+  }
+
+  .label-upper {
+    @apply text-[10px] uppercase text-zinc-500 font-bold tracking-widest block mb-1;
+  }
+}
+
